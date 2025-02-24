@@ -22,4 +22,6 @@ if __name__ == '__main__':
     elapsed_time = end_time - start_time
     print(f"Tiempo: {elapsed_time} segundos ")
     diccionario.mostrar_memoria()
+    print("CPU: Intel(R) Core(TM) i5-1035G1 CPU @ 1.00GHz   1.19 GHz")
+    print("RAM: 8,00 GB (7,81 GB usable)")
 
