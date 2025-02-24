@@ -1,17 +1,30 @@
 import json
 import os
 import sys
-from collections import Counter
 import pickle
+
+class Documento:
+    def __init__(self, documento):
+        self.documento = documento
+        self.apariciones=1
+    def inc(self):
+        self.apariciones=self.apariciones+1
+
+
+
 
 
 class Elemento:
     def __init__(self,id_palabra):
         self.id_palabra = id_palabra
-        self.frec_doc=Counter()
+        self.frec_doc=[]
 
     def nueva_aparicion(self, doc):
-        self.frec_doc.update(str(doc).split())
+        self.frec_doc.append(Documento(doc))
+
+    def incrementa_doc(self):
+        self.frec_doc[-1].inc()
+
 
     def string_form(self):
         return f"Elemento: {self.id_palabra}, Frecuencia por Documento: {dict(self.frec_doc)}"
@@ -27,10 +40,9 @@ class Diccionario:
         self.cont_doc=0
 
 
-    def __leer_json(self,nombre_archivo):
+    def __leer_json(self,nombre_archivo,indice_fichero):
         try:
             with open(nombre_archivo, 'r', encoding='utf-8') as archivo:
-                indice_fichero=  self.doc2id.get(nombre_archivo)
                 datos = json.load(archivo)  # Cargar el contenido del JSON
                 if isinstance(datos, list):  # Verificar que sea una lista
                     for palabra in datos:
@@ -43,7 +55,13 @@ class Diccionario:
                             self.cont_term += 1
 
                         else:
-                            self.indice_invertido.get(self.term2id.get(palabra)).nueva_aparicion(indice_fichero)
+                            termino=self.indice_invertido.get(self.term2id.get(palabra))
+                            if termino.frec_doc[-1].documento == indice_fichero:
+                                termino.incrementa_doc()
+                            else:
+                                termino.nueva_aparicion(indice_fichero)
+
+
 
 
 
@@ -69,8 +87,8 @@ class Diccionario:
             if file_name not in self.doc2id:
                 self.id2doc.append(file_name)
                 self.doc2id[file_name] = self.cont_doc
+                self.__leer_json(file_name,self.cont_doc)
                 self.cont_doc += 1
-                self.__leer_json(file_name)
             else:
                 print(f"No se ha procesado el documento {file_name} porque ya existe")
 
