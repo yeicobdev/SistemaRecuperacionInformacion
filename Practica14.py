@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import sys
 import pickle
@@ -7,9 +8,23 @@ class Documento:
     def __init__(self, documento):
         self.documento = documento
         self.apariciones=1
+        self.sum_w = 0.0
+        self.tf=-1
+        self.idf=-1
+        self.w=-1
+        self.nw=-1
+
     def inc(self):
         self.apariciones=self.apariciones+1
 
+    def set_values(self,max_tf,df,n):
+        self.tf=self.apariciones/max_tf
+        self.idf=math.log2(n/df)
+        self.w=self.tf*self.idf
+        return self.w
+
+    def calculate_nw(self,norm):
+        self.nw=self.w/norm
 
 
 
@@ -18,12 +33,19 @@ class Elemento:
     def __init__(self,id_palabra):
         self.id_palabra = id_palabra
         self.frec_doc=[]
+        self.max_frec=1
+
 
     def nueva_aparicion(self, doc):
         self.frec_doc.append(Documento(doc))
 
+
     def incrementa_doc(self):
         self.frec_doc[-1].inc()
+        if self.frec_doc[-1].apariciones > self.max_frec:
+            self.max_frec=self.frec_doc[-1].apariciones
+
+
 
 
     def string_form(self):
@@ -91,6 +113,19 @@ class Diccionario:
                 self.cont_doc += 1
             else:
                 print(f"No se ha procesado el documento {file_name} porque ya existe")
+
+
+
+    def calcula_pesos_y_frecuencias(self):
+        squared_weights=0.0
+        for term in self.indice_invertido.values():
+            for document in term.frec_doc:
+                squared_weights=squared_weights+pow(document.set_values(term.max_frec,len(term.frec_doc),self.cont_doc),2)
+            for document in term.frec_doc:
+                document.calculate_nw(math.sqrt(squared_weights))
+
+
+
 
 
 
