@@ -8,20 +8,17 @@ class Documento:
     def __init__(self, documento):
         self.documento = documento
         self.apariciones=1
-        self.sum_w = 0.0
-        self.tf=-1
-        self.idf=-1
         self.w=-1
         self.nw=-1
+
 
     def inc(self):
         self.apariciones=self.apariciones+1
 
-    def set_values(self,max_tf,df,n):
-        self.tf=self.apariciones/max_tf
-        self.idf=math.log2(n/df)
-        self.w=self.tf*self.idf
-        return self.w
+    def set_values(self,max_tf,idf):
+        tf=self.apariciones/max_tf
+        self.w=tf*idf
+
 
     def calculate_nw(self,norm):
         self.nw=self.w/norm
@@ -32,18 +29,20 @@ class Documento:
 class Elemento:
     def __init__(self,id_palabra):
         self.id_palabra = id_palabra
-        self.frec_doc=[]
+        self.frec_doc={}
         self.max_frec=1
+        self.idf=-1
+
 
 
     def nueva_aparicion(self, doc):
-        self.frec_doc.append(Documento(doc))
+        self.frec_doc[doc]=(Documento(doc))
 
 
-    def incrementa_doc(self):
-        self.frec_doc[-1].inc()
-        if self.frec_doc[-1].apariciones > self.max_frec:
-            self.max_frec=self.frec_doc[-1].apariciones
+    def incrementa_doc(self,indice):
+        self.frec_doc[indice].inc()
+        if self.frec_doc[indice].apariciones > self.max_frec:
+            self.max_frec=self.frec_doc[indice].apariciones
 
 
 
@@ -60,6 +59,7 @@ class Diccionario:
         self.indice_invertido={}
         self.cont_term=0
         self.cont_doc=0
+        self.idf_list=[]
 
 
     def __leer_json(self,nombre_archivo,indice_fichero):
@@ -78,8 +78,8 @@ class Diccionario:
 
                         else:
                             termino=self.indice_invertido.get(self.term2id.get(palabra))
-                            if termino.frec_doc[-1].documento == indice_fichero:
-                                termino.incrementa_doc()
+                            if indice_fichero in termino.frec_doc:
+                                termino.incrementa_doc(indice_fichero)
                             else:
                                 termino.nueva_aparicion(indice_fichero)
 
@@ -96,6 +96,7 @@ class Diccionario:
 
 
 
+
     def leer(self, data_path):
 
 
@@ -104,25 +105,43 @@ class Diccionario:
         for file in os.listdir(data_path):
 
 
+            file_id=file[:-12]+".xml"
+
             file_name=data_path+"\\"+file
 
-            if file_name not in self.doc2id:
-                self.id2doc.append(file_name)
-                self.doc2id[file_name] = self.cont_doc
+            if file not in self.doc2id:
+                self.id2doc.append(file_id)
+                self.doc2id[file_id] = self.cont_doc
                 self.__leer_json(file_name,self.cont_doc)
                 self.cont_doc += 1
             else:
-                print(f"No se ha procesado el documento {file_name} porque ya existe")
+                print(f"No se ha procesado el documento {file} porque ya existe")
 
 
 
     def calcula_pesos_y_frecuencias(self):
-        squared_weights=0.0
+
         for term in self.indice_invertido.values():
-            for document in term.frec_doc:
-                squared_weights=squared_weights+pow(document.set_values(term.max_frec,len(term.frec_doc),self.cont_doc),2)
-            for document in term.frec_doc:
-                document.calculate_nw(math.sqrt(squared_weights))
+
+            term.idf=math.log2(self.cont_doc/len(term.frec_doc))
+            self.idf_list.append(term.idf)
+
+            for document in term.frec_doc.values():
+                document.set_values(term.max_frec,term.idf)
+
+        lista_sqr = [0] * self.cont_doc
+        for term in self.indice_invertido.values():
+            for doc in term.frec_doc.values():
+                lista_sqr[doc.documento]+=pow(doc.nw,2)
+
+
+        for term in self.indice_invertido.values():
+            for document in term.frec_doc.values():
+                document.calculate_nw(math.sqrt(lista_sqr[document.documento]))
+
+
+
+
 
 
 
@@ -148,6 +167,7 @@ class Diccionario:
             pickle.dump(self.indice_invertido,archivo)
             pickle.dump(self.cont_term,archivo)
             pickle.dump(self.cont_doc,archivo)
+            pickle.dump(self.idf_list,archivo)
 
 
 
@@ -161,6 +181,7 @@ class Diccionario:
             self.indice_invertido=pickle.load(archivo)
             self.cont_term=pickle.load(archivo)
             self.cont_doc=pickle.load(archivo)
+            self.idf_list=pickle.load(archivo)
 
     @staticmethod
     def __calcular_memoria(estructura):
